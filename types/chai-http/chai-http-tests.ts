@@ -1,16 +1,15 @@
+import * as request from 'superagent';
 import fs = require('fs');
 import http = require('http');
 import chai = require('chai');
 import ChaiHttp = require('chai-http');
-import when = require('when');
+import q = require('q');
 
 chai.use(ChaiHttp);
 
-// ReSharper disable WrongExpressionStatement
-
 // Add promise support if this does not exist natively.
 if (!global.Promise) {
-	chai.request.addPromises(when.promise);
+	chai.request.addPromises(q.Promise);
 }
 
 declare const app: http.Server;
@@ -41,7 +40,7 @@ chai.request(app)
 const ca = fs.readFileSync('ca.cert.pem');
 const key = fs.readFileSync('key.pem');
 const cert = fs.readFileSync('cert.pem');
-const callback = (err: any, res: ChaiHttp.Response) => {};
+const callback = (err: any, res: request.Response) => {};
 
 chai.request(app)
 	.post('/secure')
@@ -73,7 +72,7 @@ chai.request(app)
 chai.request(app)
 	.put('/user/me')
 	.send({ passsword: '123', confirmPassword: '123' })
-	.end((err: any, res: ChaiHttp.Response) => {
+	.end((err: any, res: request.Response) => {
 		chai.expect(err).to.be.null;
 		chai.expect(res).to.have.status(200);
 	});
@@ -81,7 +80,7 @@ chai.request(app)
 chai.request(app)
 	.put('/user/me')
 	.send({ passsword: '123', confirmPassword: '123' })
-	.then((res: ChaiHttp.Response) => chai.expect(res).to.have.status(200))
+	.then((res: request.Response) => chai.expect(res).to.have.status(200))
 	.catch((err: any) => { throw err; });
 
 chai.request(app)
@@ -93,19 +92,19 @@ const agent = chai.request.agent(app);
 agent
 	.post('/session')
 	.send({ username: 'me', password: '123' })
-	.then((res: ChaiHttp.Response) => {
+	.then((res: request.Response) => {
 		chai.expect(res).to.have.cookie('sessionid');
 		// The `agent` now has the sessionid cookie saved, and will send it
 		// back to the server in the next request:
 		return agent.get('/user/me')
-			.then((res: ChaiHttp.Response) => chai.expect(res).to.have.status(200));
+			.then((res: request.Response) => chai.expect(res).to.have.status(200));
 	});
 
 agent.close((err: any) => { throw err; });
 
 function test1() {
 	const req = chai.request(app).get('/');
-	req.then((res: ChaiHttp.Response) => {
+	req.then((res: request.Response) => {
 		chai.expect(res).to.have.status(200);
 		chai.expect(res).to.have.header('content-type', 'text/plain');
 		chai.expect(res).to.have.header('content-type', /^text/);
@@ -132,7 +131,7 @@ function test1() {
 	});
 }
 
-when(chai.request(app).get('/')).done(() => console.log('success'), () => console.log('failure'));
+q(chai.request(app).get('/')).then(() => console.log('success'), () => console.log('failure'));
 
 Promise.resolve(1)
 	.then(val => chai.request(app).get(`/user/${val}`))
